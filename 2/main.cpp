@@ -18,10 +18,24 @@ struct DiceExtraction
     int blue_count;
 };
 
-struct ParserError
+enum class ParserError
 {
-    int code;
+    k_ok,
+    k_unexpected_end_of_stream,
+    k_unexpected_token
 };
+
+char const* to_string(ParserError ec)
+{
+    switch(ec)
+    {
+    case ParserError::k_ok:                       return "ok";
+    case ParserError::k_unexpected_end_of_stream: return "unexpected end of the stream";
+    case ParserError::k_unexpected_token:         return "unexpected token";
+    }
+    return "unknown error";
+}
+
 
 struct StrView
 {
@@ -40,11 +54,11 @@ void consume(StrView& iter, string_view const& cmp)
     for(auto c : cmp)
     {
         if (iter.cursor == iter.sentinel)
-            throw ParserError{1}; // End of stream
+            throw ParserError::k_unexpected_end_of_stream;
         if (*iter.cursor == c)
             iter.cursor++;
         else
-            throw ParserError{2}; // Wrong token
+            throw ParserError::k_unexpected_token;
     }
 }
 
@@ -83,7 +97,7 @@ void remove_trail_spaces(StrView& iter)
 int32_t get_int32(StrView& iter)
 {
     if (iter.done())
-        throw ParserError{1};
+        throw ParserError::k_unexpected_end_of_stream;
 
     bool has_number = false;
     int32_t value = 0;
@@ -101,13 +115,12 @@ int32_t get_int32(StrView& iter)
             value *= 10;
             value += c - '0';
             ++iter.cursor;
-
         }
         else
         {
             if (has_number)
                 break;
-            throw ParserError{2};
+            throw ParserError::k_unexpected_token;
         }
     }
     return value;
@@ -151,10 +164,10 @@ int main()
         cout << "File not found\n";
         return -1;
     }
-    string tp;
     int accum = 0;
     try
     {
+        string tp;
         while(std::getline(file, tp))
         {
             accum += scan_line(tp);
@@ -162,7 +175,7 @@ int main()
     }
     catch (ParserError const& error)
     {
-        cout << "parsing error: " << error.code << "\n";
+        cout << "parsing error: " << to_string(error) << "\n";
     }
     cout << accum << "\n";
 }
